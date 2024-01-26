@@ -3,4 +3,6 @@
 export(bm_prep)
 export(create_layers)
 export(folded_aspect)
+export(get_es)
+export(get_vpd)
 export(upslope)

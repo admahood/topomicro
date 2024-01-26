@@ -31,7 +31,6 @@ bm_prep <- function(filename){
 #' @param dem A digital elevation model loaded in using the Raster package
 #' @export
 upslope <- function (dem, log = TRUE, atb = FALSE, deg = 0.12, fill.sinks = TRUE)
-
 { requireNamespace("topmodel")
   requireNamespace("raster")
   if (!all.equal(xres(dem), yres(dem))) {
@@ -40,7 +39,7 @@ upslope <- function (dem, log = TRUE, atb = FALSE, deg = 0.12, fill.sinks = TRUE
   if (fill.sinks) {
     capture.output(dem <- invisible(raster::setValues(dem,
                                                       topmodel::sinkfill(raster::as.matrix(dem),
-                                                                         res = xres(dem),
+                                                                         res = raster::xres(dem),
                                                                          degree = deg))))
   }
   topidx <- topmodel::topidx(raster::as.matrix(dem), res = xres(dem))
@@ -50,7 +49,7 @@ upslope <- function (dem, log = TRUE, atb = FALSE, deg = 0.12, fill.sinks = TRUE
   }
   if (atb) {
     atb <- raster::setValues(dem, topidx$atb)
-    a <- addLayer(a, atb)
+    a <- raster::addLayer(a, atb)
     names(a) <- c("a", "atb")
   }
   return(a)
@@ -65,10 +64,10 @@ upslope <- function (dem, log = TRUE, atb = FALSE, deg = 0.12, fill.sinks = TRUE
 create_layers <- function (dem, fill.sinks = TRUE, deg = 0.1)
 {
   requireNamespace("raster")
-  layers <- stack(dem)
+  layers <- raster::stack(dem)
   message("Building upslope areas...")
   a.atb <- upslope(dem, atb = TRUE, fill.sinks = fill.sinks, deg = deg)
-  layers <- addLayer(layers, a.atb)
+  layers <- raster::addLayer(layers, a.atb)
   names(layers) <- c("filled.elevations", "upslope.area", "twi")
   return(layers)
 }
@@ -80,3 +79,28 @@ create_layers <- function (dem, fill.sinks = TRUE, deg = 0.1)
 #'
 #' @return folded aspect, ranges from 0-180, with 180 being the hottest aspect (SW)
 folded_aspect <- function(aspect){abs(180 - abs(aspect - 225))}
+
+#' Saturation pressure
+#'
+#' Thanks https://physics.stackexchange.com/questions/4343/how-can-i-calculate-vapor-pressure-deficit-from-temperature-and-relative-humidit
+#'
+#' @param t temperature
+#' @export
+get_es <- function(temp_c){
+  es <- 6.11 * exp((2.5e6 / 461) * (1 / 273.15 - 1 / (273.15 + temp_c)))
+  return(es)
+}
+
+#' Vapor pressure deficit
+#'
+#' Thanks https://physics.stackexchange.com/questions/4343/how-can-i-calculate-vapor-pressure-deficit-from-temperature-and-relative-humidit
+#'
+#' @param t temperature
+#' @export
+get_vpd <- function(rh, temp_c){
+  ## calculate saturation vapor pressure
+  es <- get.es(temp_c)
+  ## calculate vapor pressure deficit
+  vpd <- ((100 - rh) / 100) * es
+  return(vpd)
+}

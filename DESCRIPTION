@@ -1,6 +1,6 @@
 Package: topomicro
 Title: What the Package Does (One Line, Title Case)
-Version: 0.0.0.9000
+Version: 0.0.1
 Authors@R: 
     person("Adam", "Mahood", , "admahood@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0003-3791-9654"))
