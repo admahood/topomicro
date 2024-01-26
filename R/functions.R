@@ -99,7 +99,7 @@ get_es <- function(temp_c){
 #' @export
 get_vpd <- function(rh, temp_c){
   ## calculate saturation vapor pressure
-  es <- get.es(temp_c)
+  es <- get_es(temp_c)
   ## calculate vapor pressure deficit
   vpd <- ((100 - rh) / 100) * es
   return(vpd)
