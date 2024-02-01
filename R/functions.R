@@ -34,18 +34,18 @@ bm_prep <- function(filename){
 #'
 #' @param dem A digital elevation model loaded in using the Raster package
 #' @param log calculate twi as the log of the topographic index
-#' @param atb
+#' @param atb atb
 #' @param deg some kind of degree thing
 #' @param fill.sinks if true, small depressions are smoothed out in the dem
 #' @export
-upslope <- function (dem, log = TRUE, atb = FALSE, deg = 0.12, resol=NA,
+upslope <- function (dem, log = TRUE, atb = FALSE, deg = 0.12, resolution=NA,
                      fill.sinks = TRUE)
 { requireNamespace("topmodel")
   requireNamespace("raster")
-  if (!all.equal(xres(dem), yres(dem))) {
+  if (!all.equal(raster::xres(dem), raster::yres(dem))) {
     stop("Raster has differing x and y cell resolutions. Check that it is in a projected coordinate system (e.g. UTM) and use raster::projectRaster to reproject to one if not. Otherwise consider using raster::resample")
   }
-  if(is.na(res)) resol <- raster::xres(dem) else resol <- resol
+  if(is.na(resolution)) resolution <- raster::xres(dem)
   if (fill.sinks) {
     capture.output(dem <- invisible(
       raster::setValues(dem,
@@ -53,7 +53,7 @@ upslope <- function (dem, log = TRUE, atb = FALSE, deg = 0.12, resol=NA,
                                            res = resol,
                                            degree = deg))))
   }
-  topidx <- topmodel::topidx(raster::as.matrix(dem), res = resol)
+  topidx <- topmodel::topidx(raster::as.matrix(dem), res = resolultion)
   a <- raster::setValues(dem, topidx$area)
   if (log) {
     a <- log(a)
@@ -72,14 +72,14 @@ upslope <- function (dem, log = TRUE, atb = FALSE, deg = 0.12, resol=NA,
 #'
 #' @param dem A digital elevation model loaded in using the Raster package
 #' @export
-create_layers <- function (dem, fill.sinks = TRUE, deg = 0.1, res = NA)
+create_layers <- function (dem, fill.sinks = TRUE, deg = 0.1, resolution = NA)
 {
   requireNamespace("raster")
   requireNamespace("terra")
   if(as.character(class(dem)) == "SpatRaster") dem <- as(dem, "Raster")
   layers <- raster::stack(dem)
   message("Building upslope areas...")
-  a.atb <- upslope(dem, atb = TRUE, fill.sinks = fill.sinks, deg = deg)
+  a.atb <- upslope(dem, atb = TRUE, fill.sinks = fill.sinks, deg = deg, resolution = resolution)
   layers <- raster::addLayer(layers, a.atb)
   names(layers) <- c("filled.elevations", "upslope.area", "twi")
   return(layers)

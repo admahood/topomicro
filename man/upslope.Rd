@@ -4,7 +4,14 @@
 \alias{upslope}
 \title{Calculate upslope areas}
 \usage{
-upslope(dem, log = TRUE, atb = FALSE, deg = 0.12, fill.sinks = TRUE)
+upslope(
+  dem,
+  log = TRUE,
+  atb = FALSE,
+  deg = 0.12,
+  resolution = NA,
+  fill.sinks = TRUE
+)
 }
 \arguments{
 \item{dem}{A digital elevation model loaded in using the Raster package}

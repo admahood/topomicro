@@ -4,7 +4,7 @@
 \alias{create_layers}
 \title{Create Topographic Wetness Index and assocated layers}
 \usage{
-create_layers(dem, fill.sinks = TRUE, deg = 0.1)
+create_layers(dem, fill.sinks = TRUE, deg = 0.1, resolution = NA)
 }
 \arguments{
 \item{dem}{A digital elevation model loaded in using the Raster package}
