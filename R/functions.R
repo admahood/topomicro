@@ -44,7 +44,6 @@ upslope <- function (dem, log = TRUE, atb = FALSE, deg = 0.12, fill.sinks = TRUE
   if (!all.equal(xres(dem), yres(dem))) {
     stop("Raster has differing x and y cell resolutions. Check that it is in a projected coordinate system (e.g. UTM) and use raster::projectRaster to reproject to one if not. Otherwise consider using raster::resample")
   }
-  if(as.character(class(dem)) == "SpatRaster") dem <- as(dem, "Raster")
 
   if (fill.sinks) {
     capture.output(dem <- invisible(
@@ -76,6 +75,7 @@ create_layers <- function (dem, fill.sinks = TRUE, deg = 0.1)
 {
   requireNamespace("raster")
   requireNamespace("terra")
+  if(as.character(class(dem)) == "SpatRaster") dem <- as(dem, "Raster")
   layers <- raster::stack(dem)
   message("Building upslope areas...")
   a.atb <- upslope(dem, atb = TRUE, fill.sinks = fill.sinks, deg = deg)
