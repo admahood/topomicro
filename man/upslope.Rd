@@ -8,6 +8,12 @@ upslope(dem, log = TRUE, atb = FALSE, deg = 0.12, fill.sinks = TRUE)
 }
 \arguments{
 \item{dem}{A digital elevation model loaded in using the Raster package}
+
+\item{log}{calculate twi as the log of the topographic index}
+
+\item{deg}{some kind of degree thing}
+
+\item{fill.sinks}{if true, small depressions are smoothed out in the dem}
 }
 \description{
 Thanks to https://stackoverflow.com/questions/58553966/calculating-twi-in-r

@@ -12,3 +12,13 @@ RoxygenNote: 7.2.3
 Suggests: 
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
+Imports: dplyr,
+  lubridate,
+  magrittr,
+  tidyr,
+  tibble,
+  terra,
+  raster,
+  readr,
+  topmodel
+  
