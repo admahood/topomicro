@@ -38,21 +38,22 @@ bm_prep <- function(filename){
 #' @param deg some kind of degree thing
 #' @param fill.sinks if true, small depressions are smoothed out in the dem
 #' @export
-upslope <- function (dem, log = TRUE, atb = FALSE, deg = 0.12, fill.sinks = TRUE)
+upslope <- function (dem, log = TRUE, atb = FALSE, deg = 0.12, resol=NA,
+                     fill.sinks = TRUE)
 { requireNamespace("topmodel")
   requireNamespace("raster")
   if (!all.equal(xres(dem), yres(dem))) {
     stop("Raster has differing x and y cell resolutions. Check that it is in a projected coordinate system (e.g. UTM) and use raster::projectRaster to reproject to one if not. Otherwise consider using raster::resample")
   }
-
+  if(is.na(res)) resol <- raster::xres(dem) else resol <- resol
   if (fill.sinks) {
     capture.output(dem <- invisible(
       raster::setValues(dem,
                         topmodel::sinkfill(raster::as.matrix(dem),
-                                           res = raster::xres(dem),
+                                           res = resol,
                                            degree = deg))))
   }
-  topidx <- topmodel::topidx(raster::as.matrix(dem), res = xres(dem))
+  topidx <- topmodel::topidx(raster::as.matrix(dem), res = resol)
   a <- raster::setValues(dem, topidx$area)
   if (log) {
     a <- log(a)
@@ -71,7 +72,7 @@ upslope <- function (dem, log = TRUE, atb = FALSE, deg = 0.12, fill.sinks = TRUE
 #'
 #' @param dem A digital elevation model loaded in using the Raster package
 #' @export
-create_layers <- function (dem, fill.sinks = TRUE, deg = 0.1)
+create_layers <- function (dem, fill.sinks = TRUE, deg = 0.1, res = NA)
 {
   requireNamespace("raster")
   requireNamespace("terra")
@@ -84,7 +85,7 @@ create_layers <- function (dem, fill.sinks = TRUE, deg = 0.1)
   return(layers)
 }
 
-terra_twi <- function(dem, deg = 0.1, fill.sinks=T){
+terra_twi <- function(dem, deg = 0.1, fill.sinks=T, res=NA){
   requireNamespace("terra")
   requireNamespace("topmodel")
   if (fill.sinks) {
