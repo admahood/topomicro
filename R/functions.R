@@ -50,7 +50,7 @@ upslope <- function (dem, log = TRUE, atb = FALSE, deg = 0.12, resolution=NA,
     capture.output(dem <- invisible(
       raster::setValues(dem,
                         topmodel::sinkfill(raster::as.matrix(dem),
-                                           res = resol,
+                                           res = resolution,
                                            degree = deg))))
   }
   topidx <- topmodel::topidx(raster::as.matrix(dem), res = resolultion)

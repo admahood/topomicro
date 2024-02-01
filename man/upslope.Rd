@@ -18,6 +18,8 @@ upslope(
 
 \item{log}{calculate twi as the log of the topographic index}
 
+\item{atb}{atb}
+
 \item{deg}{some kind of degree thing}
 
 \item{fill.sinks}{if true, small depressions are smoothed out in the dem}
