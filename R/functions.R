@@ -28,81 +28,36 @@ bm_prep <- function(filename){
   return(bottom)
 }
 
-#' Calculate upslope areas
+#' Calculate Topographic Wetness Index and upslope area
 #'
 #' Thanks to https://stackoverflow.com/questions/58553966/calculating-twi-in-r
 #'
-#' @param dem A digital elevation model loaded in using the Raster package
-#' @param log calculate twi as the log of the topographic index
-#' @param atb atb
+#' @param dem A digital elevation model loaded in using the Raster or terra package. Units must be in meters
 #' @param deg some kind of degree thing
 #' @param fill.sinks if true, small depressions are smoothed out in the dem
-#' @export
-upslope <- function (dem, log = TRUE, atb = FALSE, deg = 0.12, resolution=NA,
-                     fill.sinks = TRUE)
-{ requireNamespace("topmodel")
-  requireNamespace("raster")
-  if (!all.equal(raster::xres(dem), raster::yres(dem))) {
-    stop("Raster has differing x and y cell resolutions. Check that it is in a projected coordinate system (e.g. UTM) and use raster::projectRaster to reproject to one if not. Otherwise consider using raster::resample")
-  }
-  if(is.na(resolution)) resolution <- raster::xres(dem)
-  if (fill.sinks) {
-    capture.output(dem <- invisible(
-      raster::setValues(dem,
-                        topmodel::sinkfill(raster::as.matrix(dem),
-                                           res = resolution,
-                                           degree = deg))))
-  }
-  topidx <- topmodel::topidx(raster::as.matrix(dem), res = resolultion)
-  a <- raster::setValues(dem, topidx$area)
-  if (log) {
-    a <- log(a)
-  }
-  if (atb) {
-    atb <- raster::setValues(dem, topidx$atb)
-    a <- raster::addLayer(a, atb)
-    names(a) <- c("a", "atb")
-  }
-  return(a)
-}
-
-#' Create Topographic Wetness Index and assocated layers
+#' @param resolution NA is the default, assuming the native XY resolution of the
+#' raster is in meters. Set to the resolution in meters if the native xy resolution
+#' of the raster is in degrees
 #'
-#' Thanks to https://stackoverflow.com/questions/58553966/calculating-twi-in-r
-#'
-#' @param dem A digital elevation model loaded in using the Raster package
 #' @export
-create_layers <- function (dem, fill.sinks = TRUE, deg = 0.1, resolution = NA)
-{
-  requireNamespace("raster")
-  requireNamespace("terra")
-  if(as.character(class(dem)) == "SpatRaster") dem <- as(dem, "Raster")
-  layers <- raster::stack(dem)
-  message("Building upslope areas...")
-  a.atb <- upslope(dem, atb = TRUE, fill.sinks = fill.sinks, deg = deg, resolution = resolution)
-  layers <- raster::addLayer(layers, a.atb)
-  names(layers) <- c("filled.elevations", "upslope.area", "twi")
-  return(layers)
-}
-
-terra_twi <- function(dem, deg = 0.1, fill.sinks=T, res=NA){
+get_twi <- function(dem, deg = 0.12, fill.sinks=T, resolution=NA){
   requireNamespace("terra")
   requireNamespace("topmodel")
+  if(class(dem)|>as.character() == "RasterLayer") dem <- terra::rast(dem)
+  if(is.na(resolution)) resolution <- terra::xres(dem)
   if (fill.sinks) {
-    capture.output(dem1 <- invisible(terra::setValues(dem,
-                                                      topmodel::sinkfill(terra::as.matrix(dem),
-                                                                         res = terra::xres(dem),
+    utils::capture.output(dem1 <- invisible(terra::setValues(dem,
+                                                      topmodel::sinkfill(terra::as.matrix(dem, wide = T),
+                                                                         res = resolution,
                                                                          degree = deg))))
   }else{dem1 <- dem}
-  ti <- topmodel::topidx(terra::as.matrix(dem1), res = terra::xres(dem1))
+  ti <- topmodel::topidx(terra::as.matrix(dem1, wide=T), res = resolution)
   a <- terra::setValues(dem1, ti$area)
   a <- log(a + 1)
-
-  if (atb) {
-    atb <- terra::setValues(dem1, ti$atb)
-    a <- terra::addLayer(a, atb)
-    names(a) <- c("a", "atb")
-  }
+  atb <- terra::setValues(dem1, ti$atb)
+  a <- c(a, atb)
+  names(a) <- c("upslope_area", "twi")
+  return(a)
 }
 
 #' Calculate folded aspect
@@ -111,13 +66,13 @@ terra_twi <- function(dem, deg = 0.1, fill.sinks=T, res=NA){
 #' @export
 #'
 #' @return folded aspect, ranges from 0-180, with 180 being the hottest aspect (SW)
-folded_aspect <- function(aspect){abs(180 - abs(aspect - 225))}
+get_folded_aspect <- function(aspect){abs(180 - abs(aspect - 225))}
 
 #' Saturation pressure
 #'
 #' Thanks https://physics.stackexchange.com/questions/4343/how-can-i-calculate-vapor-pressure-deficit-from-temperature-and-relative-humidit
 #'
-#' @param t temperature
+#' @param temp_c temperature
 #' @export
 get_es <- function(temp_c){
   es <- 6.11 * exp((2.5e6 / 461) * (1 / 273.15 - 1 / (273.15 + temp_c)))
@@ -128,7 +83,8 @@ get_es <- function(temp_c){
 #'
 #' Thanks https://physics.stackexchange.com/questions/4343/how-can-i-calculate-vapor-pressure-deficit-from-temperature-and-relative-humidit
 #'
-#' @param t temperature
+#' @param temp_c temperature
+#' @param rh relative humidity
 #' @export
 get_vpd <- function(rh, temp_c){
   ## calculate saturation vapor pressure

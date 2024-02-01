@@ -7,7 +7,7 @@
 get_es(temp_c)
 }
 \arguments{
-\item{t}{temperature}
+\item{temp_c}{temperature}
 }
 \description{
 Thanks https://physics.stackexchange.com/questions/4343/how-can-i-calculate-vapor-pressure-deficit-from-temperature-and-relative-humidit

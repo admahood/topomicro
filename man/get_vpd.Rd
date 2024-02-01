@@ -7,7 +7,9 @@
 get_vpd(rh, temp_c)
 }
 \arguments{
-\item{t}{temperature}
+\item{rh}{relative humidity}
+
+\item{temp_c}{temperature}
 }
 \description{
 Thanks https://physics.stackexchange.com/questions/4343/how-can-i-calculate-vapor-pressure-deficit-from-temperature-and-relative-humidit

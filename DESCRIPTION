@@ -20,5 +20,6 @@ Imports: dplyr,
   terra,
   raster,
   readr,
-  topmodel
+  topmodel,
+  methods
   
