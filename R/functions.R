@@ -28,6 +28,36 @@ bm_prep <- function(filename){
   return(bottom)
 }
 
+#' summarise blue maestro data to the plot scale
+#'
+#' @param df a data frame created by the bm_prep function
+#' @export
+plotwise_summary <- function(df){
+  requireNamespace("dplyr")
+  requireNamespace("tibble")
+  df |>
+    dplyr::group_by(ymd, id) |>
+    dplyr::summarise(tmean = mean(temperature_c),
+              tmax = max(temperature_c),
+              tmin= min(temperature_c),
+              tdelta = tmax - tmin,
+              vmean = mean(vpd_kPa),
+              vmax = max(vpd_kPa),
+              vmin= min(vpd_kPa),
+              vdelta = vmax - vmin,
+              rmean = mean(humidity_pct),
+              rmax = max(humidity_pct),
+              rmin= min(humidity_pct),
+              rdelta = rmax - rmin) |>
+    dplyr::ungroup() |>
+    dplyr::select(-ymd) |>
+    dplyr::group_by(id) |>
+    dplyr::summarise_all(mean) |>
+    dplyr::ungroup() |>
+    dplyr::arrange(id) |>
+    tibble::column_to_rownames("id")
+}
+
 #' Calculate Topographic Wetness Index and upslope area
 #'
 #' Thanks to https://stackoverflow.com/questions/58553966/calculating-twi-in-r
@@ -88,8 +118,89 @@ get_es <- function(temp_c){
 #' @export
 get_vpd <- function(rh, temp_c){
   ## calculate saturation vapor pressure
-  es <- get_es(temp_c)
+  es <- topomicro::get_es(temp_c)
   ## calculate vapor pressure deficit
   vpd <- ((100 - rh) / 100) * es
   return(vpd)
+}
+
+#' convert vegan::envfit output to a tidy data frame
+#'
+#' @param x the output of the vegan::envfit function
+#' @export
+tidy_envfit <- function(x){
+  out <- as.data.frame(x$vectors$arrows) |>
+    tibble::rownames_to_column("var")
+  out$r2 <- x$vectors$r
+  out$p <- x$vectors$pvals
+  return(out)
+}
+
+#' summarise blue maestro data
+#'
+#' @param l a list of csv filenames point to raw blue maestro data
+#' @param exclude which sensor numbers to exclude
+#' @param start_date exclude measurements before this
+#' @param end_date exclude measurements after this
+#' @param min_t exclude rows with temperatures below this (typically for error exclusion)
+#' @export
+bm_summary <- function(l, exclude = NA, start_date = NA, end_date = NA, min_t = NA){
+  requireNamespace("stringr")
+  requireNamespace("dplyr")
+  requireNamespace("ggplot2")
+  stuff <- list()
+  for (i in 1:length(l)){
+    print(l[i])
+    stuff[[i]] <- topomicro::bm_prep(filename = l[i])
+  }
+
+  d <- dplyr::bind_rows(stuff) |>
+    dplyr::mutate(number = stringr::str_extract(id, "\\d+") %>% as.numeric(),
+           vpd_kPa = topomicro::get_vpd(rh=humidity_pct, temp_c = temperature_c)/10)
+  if(!is.na(end_date)) d <- d |> dplyr::filter(dt < as.Date(end_date))
+  if(!is.na(start_date)) d <- d |> dplyr::filter(dt > as.Date(start_date))
+  if(!is.na(min_t)) d <- d |> dplyr::filter(temperature_c > min_t)
+  if(!is.na(exclude[1])){
+    d <- d |>
+      filter(!number %in% exclude)
+  }
+
+  pt <- d |>
+    ggplot2::ggplot(aes(x=dt, y=temperature_c)) +
+    ggplot2::geom_line() +
+    ggplot2::facet_wrap(~id, ncol=1) +
+    ggplot2::ggtitle("Temperature (c)")
+
+  pr <- d |>
+    ggplot2::ggplot(aes(x=dt, y=humidity_pct)) +
+    ggplot2::geom_line() +
+    ggplot2::facet_wrap(~id, ncol=1) +
+    ggplot2::ggtitle("Relative Humidity (pct)")
+
+  dp <- d |>
+    ggplot2::ggplot(aes(x=dt, y=dewpoint_c)) +
+    ggplot2::geom_line() +
+    ggplot2::facet_wrap(~id, ncol=1) +
+    ggplot2::ggtitle("Dewpoint (c)")
+
+  dv <- d |>
+    ggplot2::ggplot(aes(x=dt, y=vpd_kPa)) +
+    ggplot2::geom_line() +
+    ggplot2::facet_wrap(~id, ncol=1) +
+    ggplot2::ggtitle("VPD (kPA)")
+
+  d_all <- d |>
+    tidyr::pivot_longer(cols = c(temperature_c, humidity_pct, vpd_kPa, dewpoint_c)) |>
+    ggplot2::ggplot(aes(x=dt, y=value, color = as.factor(id))) +
+    ggplot2::geom_line(alpha = 0.5) +
+    ggplot2::facet_wrap(~name, scales = "free", ncol=1) +
+    ggplot2::scale_color_viridis_d() +
+    ggplot2::ggtitle("higher number = higher elevation")
+
+  return(list(temp_c = pt,
+              rh_pct = pr,
+              dewp_c = dp,
+              vpd_kPa = dv,
+              all = d_all,
+              data = d))
 }
