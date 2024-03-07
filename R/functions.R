@@ -124,6 +124,20 @@ get_vpd <- function(rh, temp_c){
   return(vpd)
 }
 
+# wish list
+# delineate watersheds
+# do a hypsogram
+# summary of landfire/nlcd data
+
+hypsogram <- function(dem, watershed=NA){
+  # clip to watershed
+
+  terra::get_values(dem) |>
+    as.data.frame() |>
+    ggplot() +
+    geom_histogram()
+}
+
 #' convert vegan::envfit output to a tidy data frame
 #'
 #' @param x the output of the vegan::envfit function
