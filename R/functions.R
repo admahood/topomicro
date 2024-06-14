@@ -129,14 +129,16 @@ get_vpd <- function(rh, temp_c){
 # do a hypsogram
 # summary of landfire/nlcd data
 
-hypsogram <- function(dem, watershed=NA){
-  # clip to watershed
-
-  terra::get_values(dem) |>
-    as.data.frame() |>
-    ggplot() +
-    geom_histogram()
-}
+# hypsogram <- function(dem, watershed=NA){
+#   # clip to watershed
+#   requireNamespace('terra')
+#   requireNamespace('ggplot2')
+#
+#   terra::get_values(dem) |>
+#     as.data.frame() |>
+#     ggplot2::ggplot() +
+#     ggplot2::geom_histogram()
+# }
 
 #' convert vegan::envfit output to a tidy data frame
 #'
@@ -217,4 +219,52 @@ bm_summary <- function(l, exclude = NA, start_date = NA, end_date = NA, min_t = 
               vpd_kPa = dv,
               all = d_all,
               data = d))
+}
+
+#' get a raster of latitude values from a dem without reprojecting
+#' @param dem a digital elevation model in SpatRaster format
+#' @export
+get_latitude_raster <- function(dem){
+  requireNamespace("terra")
+  requireNamespace("sf")
+  requireNamespace("dplyr")
+  requireNamespace("terra")
+  requireNamespace("magrittr")
+
+  dem |>
+    as.data.frame(xy=TRUE, cell=T) |>
+    sf::st_as_sf(coords = c("x", "y"), crs =sf::st_crs(dem)) |>
+    sf::st_transform(crs=4326) %>%
+    dplyr::mutate(latitude = sf::st_coordinates(.)[,2]) |>
+    sf::st_set_geometry(NULL) |>
+    dplyr::left_join(as.data.frame(dem, cell=T, xy = TRUE)) |>
+    dplyr::select(x,y, latitude) |>
+    terra::rast(type = 'xyz', crs = terra::crs(dem, proj=T))
+}
+
+#' calculates Heat Load Index (McCune and Keon 2002)
+#' Code adapted from K.C. Rodman
+#' @param dem a digital elevation model in SpatRaster format
+#' @export
+get_hli <- function(dem){
+
+  requireNamespace("terra")
+  # getting slope, converting to aspect, setting extreme highs and lows to fall
+  # within the boundaries of the HLI calculation
+  slope <- terra::terrain(dem, v="slope")
+  slope[slope > 60] <- 60
+  slope[slope < 0] <- 0
+  slope <- slope * 0.017453293
+  aspect <- terra::terrain(dem, v="aspect", unit = "radians")
+  latitude_radians <-  get_latitude_raster(dem) * 0.017453293
+  cosine_latitude <- cos(latitude_radians)
+  sine_latitude <- sin(latitude_radians)
+  folded_aspect <- abs(pi - abs(aspect - (5*pi/4)))
+  sine_slope <- sin(slope)
+  cosine_slope <- cos(slope)
+  cosine_fa <- cos(folded_aspect)
+  return(
+    0.339 + (0.808 * (cosine_latitude * cosine_slope)) -
+      (0.196 *(sine_latitude * sine_slope)) - (0.482 * (cosine_fa * sine_slope))
+  )
 }

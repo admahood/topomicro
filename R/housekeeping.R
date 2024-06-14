@@ -11,4 +11,5 @@ ignore_unused_imports <- function(){
 
 # solving the note on global variables (a symptom of using dplyr a lot)
 utils::globalVariables(c("read.csv", "year", "month",'%>%', ".", 'mday', 'hms',
-                         "dt", 'temperature', 'humidity', 'dewpoint', "demr"))
+                         "dt", 'temperature', 'humidity', 'dewpoint', "demr",
+                         'rmin', 'rmax', 'humidity_pct'))
