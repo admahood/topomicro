@@ -23,18 +23,25 @@ bm_prep <- function(filename){
                   humidity_pct = humidity,
                   dewpoint_c = dewpoint) |>
     dplyr::mutate(id = top$Name,
-           dl_date = top$Download_Date)
+           dl_date = top$Download_Date,
+           vpd_kPa = topomicro::get_vpd(rh = humidity_pct,
+                                        temp_c = temperature_c))
   lubridate::tz(bottom$dt) <- "US/Mountain"
+
   return(bottom)
 }
 
 #' summarise blue maestro data to the plot scale
 #'
-#' @param df a data frame created by the bm_prep function
+#' @param bm_df a data frame created by the bm_prep function
+#'
+#'
+#'
 #' @export
-plotwise_summary <- function(df){
+plotwise_summary <- function(bm_df){
   requireNamespace("dplyr")
   requireNamespace("tibble")
+
   df |>
     dplyr::group_by(ymd, id) |>
     dplyr::summarise(tmean = mean(temperature_c),
@@ -50,6 +57,72 @@ plotwise_summary <- function(df){
               rmin= min(humidity_pct),
               rdelta = rmax - rmin) |>
     dplyr::ungroup() |>
+    dplyr::select(-ymd) |>
+    dplyr::group_by(id) |>
+    dplyr::summarise_all(mean) |>
+    dplyr::ungroup() |>
+    dplyr::arrange(id) |>
+    tibble::column_to_rownames("id")
+}
+
+#' summarise blue maestro data to the plot scale, standardized against a single time series
+#'
+#' columns of standardized values start with 's' (e.g tmax standardized is stmax)
+#'
+#' @param bm_df a data frame created by the bm_prep function
+#' @param std_df data frame consisting of a single time series of vpd, rh and temperature against which to standardize
+#'
+#' @export
+plotwise_summary_std <- function(bm_df, std_df){
+  requireNamespace("dplyr")
+  requireNamespace("tibble")
+
+  std <- std_df |>
+    dplyr::group_by(ymd) |>
+    dplyr::summarise(stmean = mean(temperature_c),
+                     stmax = max(temperature_c),
+                     stmin= min(temperature_c),
+                     stdelta = stmax - stmin,
+                     svmean = mean(vpd_kPa),
+                     svmax = max(vpd_kPa),
+                     svmin= min(vpd_kPa),
+                     svdelta = svmax - svmin,
+                     srmean = mean(humidity_pct),
+                     srmax = max(humidity_pct),
+                     srmin= min(humidity_pct),
+                     srdelta = srmax - srmin) |>
+    dplyr::ungroup()
+
+
+  df |>
+    dplyr::group_by(ymd, id) |>
+    dplyr::summarise(tmean = mean(temperature_c),
+                     tmax = max(temperature_c),
+                     tmin= min(temperature_c),
+                     tdelta = tmax - tmin,
+                     vmean = mean(vpd_kPa),
+                     vmax = max(vpd_kPa),
+                     vmin= min(vpd_kPa),
+                     vdelta = vmax - vmin,
+                     rmean = mean(humidity_pct),
+                     rmax = max(humidity_pct),
+                     rmin= min(humidity_pct),
+                     rdelta = rmax - rmin) |>
+    dplyr::ungroup() |>
+    dplyr::left_join(std) |>
+    dplyr::filter(!is.na(stmean)) |>
+    dplyr::mutate(stmean = tmean - stmean,
+                  stmax  = tmax - stmax,
+                  stmin = tmin - stmin,
+                  stdelta = tdelta - stdelta,
+                  svmean = vmean - svmean,
+                  svmax = vmax - svmax,
+                  svmin = vmin - svmin,
+                  svdelta = vdelta - svdelta,
+                  srmean = rmean - srmean,
+                  srmax = rmax - srmax,
+                  srmin = rmin - srmin,
+                  srdelta = rdelta - srdelta) |>
     dplyr::select(-ymd) |>
     dplyr::group_by(id) |>
     dplyr::summarise_all(mean) |>

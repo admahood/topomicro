@@ -1,6 +1,7 @@
 Package: topomicro
 Title: Topography and Microclimate Tools
-Version: 0.3.0
+Version: 0.4.0
+Date: 2024-07-01
 Authors@R: 
     person("Adam", "Mahood", , "admahood@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0003-3791-9654"))

@@ -4,10 +4,10 @@
 \alias{plotwise_summary}
 \title{summarise blue maestro data to the plot scale}
 \usage{
-plotwise_summary(df)
+plotwise_summary(bm_df)
 }
 \arguments{
-\item{df}{a data frame created by the bm_prep function}
+\item{bm_df}{a data frame created by the bm_prep function}
 }
 \description{
 summarise blue maestro data to the plot scale
