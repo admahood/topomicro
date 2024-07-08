@@ -33,16 +33,19 @@ bm_prep <- function(filename){
 
 #' summarise blue maestro data to the plot scale
 #'
-#' @param bm_df a data frame created by the bm_prep function
+#' @param mdf a data frame created by the bm_prep function
+#' @examples
+#' data('mef_micro_data')
+#' plotwise_summary(mef_micro_data)
 #'
 #'
 #'
 #' @export
-plotwise_summary <- function(bm_df){
+plotwise_summary <- function(mdf){
   requireNamespace("dplyr")
   requireNamespace("tibble")
 
-  df |>
+  mdf |>
     dplyr::group_by(ymd, id) |>
     dplyr::summarise(tmean = mean(temperature_c),
               tmax = max(temperature_c),
@@ -69,17 +72,20 @@ plotwise_summary <- function(bm_df){
 #'
 #' columns of standardized values start with 's' (e.g tmax standardized is stmax)
 #'
-#' @param bm_df a data frame created by the bm_prep function
-#' @param std_df data frame consisting of a single time series of vpd, rh and temperature against which to standardize
+#' @param mdf a data frame created by the bm_prep function
+#' @param stdf data frame consisting of a single time series of vpd, rh and temperature against which to standardize
+#'
+#' data('mef_micro_data'); data('mef_station_data')
+#' plotwise_summary_std(mef_micro_data, mef_station_data)
 #'
 #' @export
-plotwise_summary_std <- function(bm_df, std_df){
+plotwise_summary_std <- function(mdf, stdf){
   requireNamespace("dplyr")
   requireNamespace("tibble")
 
-  std <- std_df |>
+  std <- stdf |>
     dplyr::group_by(ymd) |>
-    dplyr::summarise(stmean = mean(temperature_c),
+    dplyr::reframe(stmean = mean(temperature_c),
                      stmax = max(temperature_c),
                      stmin= min(temperature_c),
                      stdelta = stmax - stmin,
@@ -90,11 +96,10 @@ plotwise_summary_std <- function(bm_df, std_df){
                      srmean = mean(humidity_pct),
                      srmax = max(humidity_pct),
                      srmin= min(humidity_pct),
-                     srdelta = srmax - srmin) |>
-    dplyr::ungroup()
+                     srdelta = srmax - srmin)
 
 
-  df |>
+  return(mdf |>
     dplyr::group_by(ymd, id) |>
     dplyr::summarise(tmean = mean(temperature_c),
                      tmax = max(temperature_c),
@@ -128,7 +133,7 @@ plotwise_summary_std <- function(bm_df, std_df){
     dplyr::summarise_all(mean) |>
     dplyr::ungroup() |>
     dplyr::arrange(id) |>
-    tibble::column_to_rownames("id")
+    tibble::column_to_rownames("id"))
 }
 
 #' Calculate Topographic Wetness Index and upslope area
@@ -184,6 +189,8 @@ get_es <- function(temp_c){
 
 #' Vapor pressure deficit
 #'
+#' Returns VPD in KPa from RH (percent) and temperature (deg C)
+#'
 #' Thanks https://physics.stackexchange.com/questions/4343/how-can-i-calculate-vapor-pressure-deficit-from-temperature-and-relative-humidit
 #'
 #' @param temp_c temperature
@@ -193,8 +200,8 @@ get_vpd <- function(rh, temp_c){
   ## calculate saturation vapor pressure
   es <- topomicro::get_es(temp_c)
   ## calculate vapor pressure deficit
-  vpd <- ((100 - rh) / 100) * es
-  return(vpd)
+  vpd_kPa <- (((100 - rh) / 100) * es)/10
+  return(vpd_kPa)
 }
 
 # wish list

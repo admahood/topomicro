@@ -12,5 +12,8 @@ get_vpd(rh, temp_c)
 \item{temp_c}{temperature}
 }
 \description{
+Returns VPD in KPa from RH (percent) and temperature (deg C)
+}
+\details{
 Thanks https://physics.stackexchange.com/questions/4343/how-can-i-calculate-vapor-pressure-deficit-from-temperature-and-relative-humidit
 }

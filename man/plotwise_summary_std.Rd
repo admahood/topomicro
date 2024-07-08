@@ -4,12 +4,15 @@
 \alias{plotwise_summary_std}
 \title{summarise blue maestro data to the plot scale, standardized against a single time series}
 \usage{
-plotwise_summary_std(bm_df, std_df)
+plotwise_summary_std(mdf, stdf)
 }
 \arguments{
-\item{bm_df}{a data frame created by the bm_prep function}
+\item{mdf}{a data frame created by the bm_prep function}
 
-\item{std_df}{data frame consisting of a single time series of vpd, rh and temperature against which to standardize}
+\item{stdf}{data frame consisting of a single time series of vpd, rh and temperature against which to standardize
+
+data('mef_micro_data'); data('mef_station_data')
+plotwise_summary_std(mef_micro_data, mef_station_data)}
 }
 \description{
 columns of standardized values start with 's' (e.g tmax standardized is stmax)
