@@ -1,6 +1,6 @@
 Package: topomicro
 Title: Topography and Microclimate Tools
-Version: 0.4.1
+Version: 0.5
 Date: 2024-07-01
 Authors@R: 
     person("Adam", "Mahood", , "admahood@gmail.com", role = c("aut", "cre"),
@@ -9,7 +9,7 @@ Description: Enjoy this grab bag of tools for topography and microclimate analys
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.1
+RoxygenNote: 7.3.2
 Suggests: 
     testthat (>= 3.0.0)
 Config/testthat/edition: 3

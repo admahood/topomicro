@@ -348,3 +348,49 @@ get_hli <- function(dem){
       (0.196 *(sine_latitude * sine_slope)) - (0.482 * (cosine_fa * sine_slope))
   )
 }
+
+#' Tidily create a spatial process model
+#'
+#' @param sf_df sf-style point layer with predictor and response variable
+#' @param vars character vector of predictor variables
+#' @param y name of response variable
+#'
+#'
+#' @export
+tidy_sp <- function(sf_df, vars, y, ...){
+  requireNamespace('sf')
+  requireNamespace('dplyr')
+  requireNamespace('fields')
+  x = sf::st_coordinates(sf_df)[,c(1,2)]
+  z = dplyr::select(sf_df, vars) |>
+    sf::st_set_geometry(NULL)
+  y = dplyr::pull(sf_df, y)
+
+  spmod <- fields::spatialProcess(x=x, y=y, Z=z,
+                                  profileLambda = TRUE,
+                                  profileARange = TRUE, ...)
+
+  return(spmod)
+}
+
+#' apply predictions of a spatial process model to a raster
+#'
+#' @param rast_stack a raster stack with all the predictor variables
+#' @param spmod a spatial process model object
+predict_sp <- function(rast_stack, spmod){
+  requireNamespace('terra')
+  requireNamespace('sf')
+  elv_df <- rast_stack |>
+    as.data.frame(xy=TRUE) |>
+    na.omit()
+  lat <- elv_df$y
+  lon <- elv_df$x
+  elev <- elv_df[,3:4]
+  xps <-cbind(lon, lat)
+  yp = predict(spmod,
+               x=xps,Z=elev)
+  spmod_rast <- terra::rast(data.frame(x=lon, y=lat, z = yp),
+                                      crs = sf::st_crs(rast_stack))
+  return(spmod_rast)
+}
+
