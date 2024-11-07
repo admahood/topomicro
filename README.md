@@ -1,2 +1,2 @@
-# topo_micro
+# topomicro
 Topography and microclimate related functions
