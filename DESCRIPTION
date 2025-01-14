@@ -5,6 +5,7 @@ Date: 2024-07-01
 Authors@R: 
     person("Adam", "Mahood", , "admahood@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0003-3791-9654"))
+    person("Jacob", "Macdonald", , "jacob.andrew.macdonald@gmail.com", role = c("aut", "cre"))
 Description: Enjoy this grab bag of tools for topography and microclimate analysis. Many are, to our knowledge, not available elsewhere.
 License: MIT + file LICENSE
 Encoding: UTF-8
