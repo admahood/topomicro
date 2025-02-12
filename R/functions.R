@@ -24,7 +24,7 @@ bm_prep <- function(filename){
                   dewpoint_c = dewpoint) |>
     dplyr::mutate(id = top$Name,
            dl_date = top$Download_Date,
-           vpd_kPa = topomicro::get_vpd(rh = humidity_pct,
+           vpd_kPa = topomicro::vpd(rh = humidity_pct,
                                         temp_c = temperature_c))
   lubridate::tz(bottom$dt) <- "US/Mountain"
 
@@ -139,18 +139,38 @@ plotwise_summary_std <- function(mdf, stdf){
 #' Calculate Topographic Wetness Index and upslope area
 #'
 #' Thanks to https://stackoverflow.com/questions/58553966/calculating-twi-in-r
+#' This function requires topmodel, which is no longer on cran. It is forked at admahood/topmodel/topmodel
 #'
 #' @param dem A digital elevation model loaded in using the Raster or terra package. Units must be in meters
 #' @param deg some kind of degree thing
-#' @param fill.sinks if true, small depressions are smoothed out in the dem
+#' @param include_upslope_area if TRUE, outputs upslope area and TWI, if FALSE (default), output is only TWI
+#' @param fill.sinks if TRUE, small depressions are smoothed out in the dem
 #' @param resolution NA is the default, assuming the native XY resolution of the
 #' raster is in meters. Set to the resolution in meters if the native xy resolution
 #' of the raster is in degrees
 #'
+#' @examples
+#' require(elevatr)
+#' require(sf)
+#' require(terra)
+#' pt <- data.frame(lat = 39.16456241323459, lon = -105.34602042323105) |>
+#'  st_as_sf(coords = c('lon', 'lat'), crs = 4326)
+#'
+#' rst <- elevatr::get_elev_raster(locations = pt, z = 12, prj = 4326)
+#' # utm zone 13
+#' # rst1 <- terra::project(as(rst, "SpatRaster"), method = 'bilinear', y = st_crs(26913)$proj4string)
+#'
+#' # either specify resolution and use original lat long raster,
+#' # or use a dem in meters
+#' twi <- topomicro::twi(rst, resolution = 14.78322,
+#'                      include_upslope_area = FALSE)
+#'  plot(twi)
+#'
+#'
 #' @export
-get_twi <- function(dem, deg = 0.12, fill.sinks=T, resolution=NA){
+twi <- function(dem, deg = 0.12, fill.sinks = T, resolution = NA, include_upslope_area = F){
   requireNamespace("terra")
-  requireNamespace("topmodel")
+  requireNamespace('topmodel')
   if(class(dem)|>as.character() == "RasterLayer") dem <- terra::rast(dem)
   if(is.na(resolution)) resolution <- terra::xres(dem)
   if (fill.sinks) {
@@ -159,13 +179,14 @@ get_twi <- function(dem, deg = 0.12, fill.sinks=T, resolution=NA){
                                                                          res = resolution,
                                                                          degree = deg))))
   }else{dem1 <- dem}
-  ti <- topmodel::topidx(terra::as.matrix(dem1, wide=T), res = resolution)
+  ti <- topmodel::topidx(terra::as.matrix(dem1, wide=T), resolution = resolution)
   a <- terra::setValues(dem1, ti$area)
   a <- log(a + 1)
   atb <- terra::setValues(dem1, ti$atb)
+  if(include_upslope_area){
   a <- c(a, atb)
   names(a) <- c("upslope_area", "twi")
-  return(a)
+  return(a)}else{names(atb) <- 'twi'; return(atb)}
 }
 
 #' Calculate folded aspect
@@ -174,7 +195,7 @@ get_twi <- function(dem, deg = 0.12, fill.sinks=T, resolution=NA){
 #' @export
 #'
 #' @return folded aspect, ranges from 0-180, with 180 being the hottest aspect (SW)
-get_folded_aspect <- function(aspect){abs(180 - abs(aspect - 225))}
+folded_aspect <- function(aspect){abs(180 - abs(aspect - 225))}
 
 #' Saturation pressure
 #'
@@ -182,7 +203,7 @@ get_folded_aspect <- function(aspect){abs(180 - abs(aspect - 225))}
 #'
 #' @param temp_c temperature
 #' @export
-get_es <- function(temp_c){
+e_sat <- function(temp_c){
   es <- 6.11 * exp((2.5e6 / 461) * (1 / 273.15 - 1 / (273.15 + temp_c)))
   return(es)
 }
@@ -196,9 +217,9 @@ get_es <- function(temp_c){
 #' @param temp_c temperature
 #' @param rh relative humidity
 #' @export
-get_vpd <- function(rh, temp_c){
+vpd <- function(rh, temp_c){
   ## calculate saturation vapor pressure
-  es <- topomicro::get_es(temp_c)
+  es <- topomicro::e_sat(temp_c)
   ## calculate vapor pressure deficit
   vpd_kPa <- (((100 - rh) / 100) * es)/10
   return(vpd_kPa)
@@ -252,42 +273,42 @@ bm_summary <- function(l, exclude = NA, start_date = NA, end_date = NA, min_t = 
 
   d <- dplyr::bind_rows(stuff) |>
     dplyr::mutate(number = stringr::str_extract(id, "\\d+") %>% as.numeric(),
-           vpd_kPa = topomicro::get_vpd(rh=humidity_pct, temp_c = temperature_c)/10)
+           vpd_kPa = topomicro::vpd(rh=humidity_pct, temp_c = temperature_c)/10)
   if(!is.na(end_date)) d <- d |> dplyr::filter(dt < as.Date(end_date))
   if(!is.na(start_date)) d <- d |> dplyr::filter(dt > as.Date(start_date))
   if(!is.na(min_t)) d <- d |> dplyr::filter(temperature_c > min_t)
   if(!is.na(exclude[1])){
     d <- d |>
-      filter(!number %in% exclude)
+      dplyr::filter(!number %in% exclude)
   }
 
   pt <- d |>
-    ggplot2::ggplot(aes(x=dt, y=temperature_c)) +
+    ggplot2::ggplot(ggplot2::aes(x=dt, y=temperature_c)) +
     ggplot2::geom_line() +
     ggplot2::facet_wrap(~id, ncol=1) +
     ggplot2::ggtitle("Temperature (c)")
 
   pr <- d |>
-    ggplot2::ggplot(aes(x=dt, y=humidity_pct)) +
+    ggplot2::ggplot(ggplot2::aes(x=dt, y=humidity_pct)) +
     ggplot2::geom_line() +
     ggplot2::facet_wrap(~id, ncol=1) +
     ggplot2::ggtitle("Relative Humidity (pct)")
 
   dp <- d |>
-    ggplot2::ggplot(aes(x=dt, y=dewpoint_c)) +
+    ggplot2::ggplot(ggplot2::aes(x=dt, y=dewpoint_c)) +
     ggplot2::geom_line() +
     ggplot2::facet_wrap(~id, ncol=1) +
     ggplot2::ggtitle("Dewpoint (c)")
 
   dv <- d |>
-    ggplot2::ggplot(aes(x=dt, y=vpd_kPa)) +
+    ggplot2::ggplot(ggplot2::aes(x=dt, y=vpd_kPa)) +
     ggplot2::geom_line() +
     ggplot2::facet_wrap(~id, ncol=1) +
     ggplot2::ggtitle("VPD (kPA)")
 
   d_all <- d |>
     tidyr::pivot_longer(cols = c(temperature_c, humidity_pct, vpd_kPa, dewpoint_c)) |>
-    ggplot2::ggplot(aes(x=dt, y=value, color = as.factor(id))) +
+    ggplot2::ggplot(ggplot2::aes(x=dt, y=value, color = as.factor(id))) +
     ggplot2::geom_line(alpha = 0.5) +
     ggplot2::facet_wrap(~name, scales = "free", ncol=1) +
     ggplot2::scale_color_viridis_d() +
@@ -302,9 +323,10 @@ bm_summary <- function(l, exclude = NA, start_date = NA, end_date = NA, min_t = 
 }
 
 #' get a raster of latitude values from a dem without reprojecting
+#'
 #' @param dem a digital elevation model in SpatRaster format
 #' @export
-get_latitude_raster <- function(dem){
+latitude_raster <- function(dem){
   requireNamespace("terra")
   requireNamespace("sf")
   requireNamespace("dplyr")
@@ -313,7 +335,7 @@ get_latitude_raster <- function(dem){
 
   dem |>
     as.data.frame(xy=TRUE, cell=T) |>
-    sf::st_as_sf(coords = c("x", "y"), crs =sf::st_crs(dem)) |>
+    sf::st_as_sf(coords = c("x", "y"), crs = sf::st_crs(dem)) |>
     sf::st_transform(crs=4326) %>%
     dplyr::mutate(latitude = sf::st_coordinates(.)[,2]) |>
     sf::st_set_geometry(NULL) |>
@@ -322,31 +344,24 @@ get_latitude_raster <- function(dem){
     terra::rast(type = 'xyz', crs = terra::crs(dem, proj=T))
 }
 
-#' calculates Heat Load Index (McCune and Keon 2002)
-#' Code adapted from K.C. Rodman
-#' @param dem a digital elevation model in SpatRaster format
+#' Heat Load Index
+#'
+#' @description calculates Heat Load Index (McCune and Keon 2002)
+#' This used to be a part of this package, but we discovered that it's avalable in
+#' spatialEco (Evans 2023), so we just have it as a wrapper now, so as not to
+#' ruin any scripts.
+#'
+#' @references Evans JS, Murphy MA (2023). _spatialEco_. R package version 2.0-2,
+#' <https://github.com/jeffreyevans/spatialEco>.
+#'
+#' @param dem terra SpatRaster class object
+#' @param check (TRUE/FALSE) check for projection integrity and calculate central latitude for non-geographic projections
+#' @param force.hemisphere If country is split at the equator, force southern or northern hemisphere equation c("southern", "northern")
+#'
 #' @export
-get_hli <- function(dem){
-
-  requireNamespace("terra")
-  # getting slope, converting to aspect, setting extreme highs and lows to fall
-  # within the boundaries of the HLI calculation
-  slope <- terra::terrain(dem, v="slope")
-  slope[slope > 60] <- 60
-  slope[slope < 0] <- 0
-  slope <- slope * 0.017453293
-  aspect <- terra::terrain(dem, v="aspect", unit = "radians")
-  latitude_radians <-  get_latitude_raster(dem) * 0.017453293
-  cosine_latitude <- cos(latitude_radians)
-  sine_latitude <- sin(latitude_radians)
-  folded_aspect <- abs(pi - abs(aspect - (5*pi/4)))
-  sine_slope <- sin(slope)
-  cosine_slope <- cos(slope)
-  cosine_fa <- cos(folded_aspect)
-  return(
-    0.339 + (0.808 * (cosine_latitude * cosine_slope)) -
-      (0.196 *(sine_latitude * sine_slope)) - (0.482 * (cosine_fa * sine_slope))
-  )
+hli <- function(dem, check =TRUE, force.hemisphere = c('none', 'southern', 'northern')){
+  requireNamespace('spatialEco')
+  return(spatialEco::hli(x=dem, check=check, force.hemisphere = force.hemisphere))
 }
 
 #' Tidily create a spatial process model
@@ -354,7 +369,10 @@ get_hli <- function(dem){
 #' @param sf_df sf-style point layer with predictor and response variable
 #' @param vars character vector of predictor variables
 #' @param y name of response variable
+#' @param ... arguments passed to fields::spatialProcess()
 #'
+#' @examples
+#' x<-9
 #'
 #' @export
 tidy_sp <- function(sf_df, vars, y, ...){
@@ -374,6 +392,7 @@ tidy_sp <- function(sf_df, vars, y, ...){
 }
 
 #' apply predictions of a spatial process model to a raster
+#'
 #'
 #' @param rast_stack a raster stack with all the predictor variables
 #' @param spmod a spatial process model object

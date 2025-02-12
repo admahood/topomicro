@@ -12,7 +12,13 @@ tidy_sp(sf_df, vars, y, ...)
 \item{vars}{character vector of predictor variables}
 
 \item{y}{name of response variable}
+
+\item{...}{arguments passed to fields::spatialProcess()}
 }
 \description{
 Tidily create a spatial process model
+}
+\examples{
+x<-9
+
 }

@@ -1,7 +1,7 @@
 Package: topomicro
 Title: Topography and Microclimate Tools
-Version: 0.5
-Date: 2024-07-01
+Version: 0.6
+Date: 2025-02-11
 Authors@R: 
     person("Adam", "Mahood", , "admahood@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0003-3791-9654"))
@@ -15,6 +15,9 @@ Suggests:
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 Imports: dplyr,
+  elevatr,
+  spatialEco,
+  fields,
   lubridate,
   magrittr,
   tidyr,
@@ -22,8 +25,8 @@ Imports: dplyr,
   terra,
   raster,
   readr,
-  topmodel,
   methods,
   ggplot2,
   stringr,
-  sf
+  sf,
+  topmodel
