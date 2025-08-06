@@ -4,10 +4,12 @@
 \alias{bm_prep}
 \title{Read in and wrangle data from Blue Maestro sensors}
 \usage{
-bm_prep(filename)
+bm_prep(filename, time_zone = "US/Mountain")
 }
 \arguments{
 \item{filename}{path to the csv file obtained from the blue maestro app.}
+
+\item{time_zone}{time zone}
 }
 \description{
 Read in and wrangle data from Blue Maestro sensors

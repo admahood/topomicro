@@ -1,33 +1,79 @@
 #' Read in and wrangle data from Blue Maestro sensors
 #'
 #' @param filename path to the csv file obtained from the blue maestro app.
+#' @param time_zone time zone
 #' @export
-bm_prep <- function(filename){
+bm_prep <- function(filename, time_zone = "US/Mountain"){
   requireNamespace("readr")
   requireNamespace("tibble")
   requireNamespace("dplyr")
+  requireNamespace('janitor')
   requireNamespace("lubridate")
-  top <- readr::read_csv(filename,n_max = 1)
 
-  bottom <- read.csv(filename) %>%
-    dplyr::slice(3:nrow(.)) |>
-    dplyr::select(index =1, date=2, temperature =3, humidity=4, dewpoint=5 ) |>
-    tibble::as_tibble() |>
-    dplyr::mutate_at(3:5, as.numeric) |>
-    tidyr::separate(date, sep = " ",
-                    into = c("weekday", "month", "mday", "year", "hms", "tz", "tzv"),
-                    extra = "merge") |>
-    dplyr::mutate(dt = lubridate::ymd_hms(paste(year, month, mday, hms, sep="-")),
-           ymd = lubridate::as_date(dt)) |>
-    dplyr::rename(temperature_c = temperature,
-                  humidity_pct = humidity,
-                  dewpoint_c = dewpoint) |>
-    dplyr::mutate(id = top$Name,
-           dl_date = top$Download_Date,
-           vpd_kPa = topomicro::vpd(rh = humidity_pct,
-                                        temp_c = temperature_c))
-  lubridate::tz(bottom$dt) <- "US/Mountain"
+  if(stringr::str_detect(filename, "log")) bm_gen <- "old" else bm_gen <- 'new'
 
+  if(bm_gen == 'old'){
+    top <- readr::read_csv(filename,n_max = 1) |>
+      janitor::clean_names()
+    bottom <- read.csv(filename) %>%
+      dplyr::slice(3:nrow(.)) |>
+      dplyr::select(index =1, date=2, temperature =3, humidity=4, dewpoint=5 ) |>
+      tibble::as_tibble() |>
+      dplyr::mutate_at(3:5, as.numeric) |>
+      tidyr::separate(date, sep = " ",
+                      into = c("weekday", "month", "mday", "year", "hms", "tz", "tzv"),
+                      extra = "merge") |>
+      dplyr::mutate(dt = lubridate::ymd_hms(paste(year, month, mday, hms, sep="-")),
+             ymd = lubridate::as_date(dt)) |>
+      dplyr::rename(temperature_c = temperature,
+                    humidity_pct = humidity,
+                    dewpoint_c = dewpoint) |>
+      dplyr::mutate(id = top$name,
+                    device_id = top$device_id,
+             dl_date = top$download_date,
+             vpd_kPa = topomicro::vpd(rh = humidity_pct,
+                                          temp_c = temperature_c))
+    lubridate::tz(bottom$dt) <- time_zone
+
+    bottom <- bottom |> dplyr::select(id,
+                                      device_id,
+                                     index,
+                                     dt,
+                                     tz,
+                                     ymd,
+                                     temperature_c,
+                                     humidity_pct,
+                                     dewpoint_c,
+                                     vpd_kPa)
+
+  }else{
+    path_split <- stringr::str_split(filename, pattern = "/", simplify = T)
+    filename_only <- path_split[1, length(path_split)]
+    filename_split <- stringr::str_split(stringr::str_remove_all(filename_only, '.csv'), pattern = '_', simplify = T)
+
+    bm_name <- filename_split[,1]
+    bm_id <- filename_split[,2]
+    bm_dl_date <- filename_split[,3]
+
+    bottom0 <- readr::read_csv(filename) |>
+      janitor::clean_names() |>
+      dplyr::rename(dt = date_time)
+
+    if(class(bottom0$dt)[1] == "character") bottom0$dt <- lubridate::parse_date_time(bottom0$dt, "%m/%d/%Y HM")
+
+    bottom <- bottom0 |>
+      dplyr::transmute(id = bm_name,
+                       device_id = bm_id,
+                index = 1:nrow(bottom0),
+                dt = dt,
+                ymd = lubridate::as_date(dt),
+                tz = time_zone,
+                temperature_c = (temperature - 32)*(5/9),
+                humidity_pct = humidity,
+                dewpoint_c = (dew_point - 32)*(5/9),
+                vpd_kPa = topomicro::vpd(rh = humidity_pct,
+                                         temp_c = temperature_c))
+  }
   return(bottom)
 }
 
