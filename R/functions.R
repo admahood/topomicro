@@ -182,59 +182,6 @@ plotwise_summary_std <- function(mdf, stdf){
     tibble::column_to_rownames("id"))
 }
 
-#' Calculate Topographic Wetness Index and upslope area
-#'
-#' Thanks to https://stackoverflow.com/questions/58553966/calculating-twi-in-r
-#' This function requires topmodel, which is no longer on cran. It is forked at admahood/topmodel/topmodel
-#'
-#' @param dem A digital elevation model loaded in using the Raster or terra package. Units must be in meters
-#' @param deg some kind of degree thing
-#' @param include_upslope_area if TRUE, outputs upslope area and TWI, if FALSE (default), output is only TWI
-#' @param fill.sinks if TRUE, small depressions are smoothed out in the dem
-#' @param resolution NA is the default, assuming the native XY resolution of the
-#' raster is in meters. Set to the resolution in meters if the native xy resolution
-#' of the raster is in degrees
-#'
-#' @examples
-#' require(elevatr)
-#' require(sf)
-#' require(terra)
-#' pt <- data.frame(lat = 39.16456241323459, lon = -105.34602042323105) |>
-#'  st_as_sf(coords = c('lon', 'lat'), crs = 4326)
-#'
-#' rst <- elevatr::get_elev_raster(locations = pt, z = 12, prj = 4326)
-#' # utm zone 13
-#' # rst1 <- terra::project(as(rst, "SpatRaster"), method = 'bilinear', y = st_crs(26913)$proj4string)
-#'
-#' # either specify resolution and use original lat long raster,
-#' # or use a dem in meters
-#' twi <- topomicro::twi(rst, resolution = 14.78322,
-#'                      include_upslope_area = FALSE)
-#'  plot(twi)
-#'
-#'
-#' @export
-twi <- function(dem, deg = 0.12, fill.sinks = T, resolution = NA, include_upslope_area = F){
-  requireNamespace("terra")
-  requireNamespace('topmodel')
-  if(class(dem)|>as.character() == "RasterLayer") dem <- terra::rast(dem)
-  if(is.na(resolution)) resolution <- terra::xres(dem)
-  if (fill.sinks) {
-    utils::capture.output(dem1 <- invisible(terra::setValues(dem,
-                                                      topmodel::sinkfill(terra::as.matrix(dem, wide = T),
-                                                                         res = resolution,
-                                                                         degree = deg))))
-  }else{dem1 <- dem}
-  ti <- topmodel::topidx(terra::as.matrix(dem1, wide=T), resolution = resolution)
-  a <- terra::setValues(dem1, ti$area)
-  a <- log(a + 1)
-  atb <- terra::setValues(dem1, ti$atb)
-  if(include_upslope_area){
-  a <- c(a, atb)
-  names(a) <- c("upslope_area", "twi")
-  return(a)}else{names(atb) <- 'twi'; return(atb)}
-}
-
 #' Calculate folded aspect
 #'
 #' @param aspect Aspect in degrees. Can be a raster or a vector of numbers
@@ -368,47 +315,6 @@ bm_summary <- function(l, exclude = NA, start_date = NA, end_date = NA, min_t = 
               data = d))
 }
 
-#' get a raster of latitude values from a dem without reprojecting
-#'
-#' @param dem a digital elevation model in SpatRaster format
-#' @export
-latitude_raster <- function(dem){
-  requireNamespace("terra")
-  requireNamespace("sf")
-  requireNamespace("dplyr")
-  requireNamespace("terra")
-  requireNamespace("magrittr")
-
-  dem |>
-    as.data.frame(xy=TRUE, cell=T) |>
-    sf::st_as_sf(coords = c("x", "y"), crs = sf::st_crs(dem)) |>
-    sf::st_transform(crs=4326) %>%
-    dplyr::mutate(latitude = sf::st_coordinates(.)[,2]) |>
-    sf::st_set_geometry(NULL) |>
-    dplyr::left_join(as.data.frame(dem, cell=T, xy = TRUE)) |>
-    dplyr::select(x,y, latitude) |>
-    terra::rast(type = 'xyz', crs = terra::crs(dem, proj=T))
-}
-
-#' Heat Load Index
-#'
-#' @description calculates Heat Load Index (McCune and Keon 2002)
-#' This used to be a part of this package, but we discovered that it's avalable in
-#' spatialEco (Evans 2023), so we just have it as a wrapper now, so as not to
-#' ruin any scripts.
-#'
-#' @references Evans JS, Murphy MA (2023). _spatialEco_. R package version 2.0-2,
-#' <https://github.com/jeffreyevans/spatialEco>.
-#'
-#' @param dem terra SpatRaster class object
-#' @param check (TRUE/FALSE) check for projection integrity and calculate central latitude for non-geographic projections
-#' @param force.hemisphere If country is split at the equator, force southern or northern hemisphere equation c("southern", "northern")
-#'
-#' @export
-hli <- function(dem, check =TRUE, force.hemisphere = c('none', 'southern', 'northern')){
-  requireNamespace('spatialEco')
-  return(spatialEco::hli(x=dem, check=check, force.hemisphere = force.hemisphere))
-}
 
 #' Tidily create a spatial process model
 #'
